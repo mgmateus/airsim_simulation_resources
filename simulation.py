@@ -16,7 +16,7 @@ from simulation_resources.utils import angular_distance
 from std_msgs.msg import String
         
 
-
+print('oi')
         
 class _Resources:
     
