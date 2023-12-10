@@ -40,6 +40,7 @@ class Ue4Briedge:
     def __init__(cls) -> None:
         cls.client.confirmConnection()
         rospy.logwarn(f"\nConnection: {cls.client.ping()}")     
+        cls.spawn_resources = _SpawResources(cls.client)
         
     
     
@@ -176,18 +177,5 @@ class _SpawResources:
         self._set_vehicle_pose(vehicle_name, position, eularian_orientation)
  
 
-if __name__ == "__main__":
-    rospy.init_node("simulation", anonymous=False)
 
-    
-    
-    
-    s = Spawn()
-    time.sleep(30)
-    #for i in range(8):
-    #    time.sleep(3)
-    #    s.set_air_random_circular_pose("Hydrone", "eolic", 40, 10)
-        
-    s.set_vehicle_pose()
-    
     
