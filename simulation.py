@@ -27,21 +27,19 @@ class Ue4Briedge:
             -For set ip address from docker network, use a ip from ping result's between containers on host
             -For set ip address from WSL, os.environ['WSL_HOST_IP'] on host.
     """        
-    client = MultirotorClient(os.environ['UE4_IP'])
     
-    @classmethod            
-    def restart(cls) -> None:
+    def __init__(self) -> None:
+        self.client = MultirotorClient(os.environ['UE4_IP'])
+        self.client.confirmConnection()
+        rospy.logwarn(f"\nConnection: {self.client.ping()}")     
+        self.spawn_resources = _SpawResources(self.client)
+        
+    def restart(self) -> None:
         """
         Reset the ue4 client conection.
         """        
-        rospy.logwarn(f"\nRestart Connection: {cls.client.ping()}")
-        cls.client.reset()
-    
-    def __init__(cls) -> None:
-        cls.client.confirmConnection()
-        rospy.logwarn(f"\nConnection: {cls.client.ping()}")     
-        cls.spawn_resources = _SpawResources(cls.client)
-        
+        rospy.logwarn(f"\nRestart Connection: {self.client.ping()}")
+        self.client.reset()
     
     
 class _SpawResources:
