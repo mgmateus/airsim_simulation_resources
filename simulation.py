@@ -178,6 +178,8 @@ class _SpawResources:
 
 if __name__ == "__main__":
     rospy.init_node("simulation", anonymous=False)
+
+    
     
     
     s = Spawn()
