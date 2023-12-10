@@ -11,67 +11,45 @@ from airsim import MultirotorClient
 from airsim.types import Pose
 from airsim.utils import to_quaternion, to_eularian_angles
 
-from simulation_resources.utils import angular_distance
-
 from std_msgs.msg import String
+
+from utils import pose, angular_distance
+
+
         
 
-print('oi')
-        
-class _Resources:
+class Ue4Briedge:
+    """Starts communication's Engine.
+
+    Args:
+        HOST: 
+            -For set ip address from host, use ipconfig result's on host
+            -For set ip address from docker network, use a ip from ping result's between containers on host
+            -For set ip address from WSL, os.environ['WSL_HOST_IP'] on host.
+    """        
+    client = MultirotorClient(os.environ['UE4_IP'])
     
-    class _Ue4Briedge:
-        """Starts communication's Engine.
-
-        Args:
-            HOST: 
-                -For set ip address from host, use ipconfig result's on host
-                -For set ip address from docker network, use a ip from ping result's between containers on host
-                -For set ip address from WSL, os.environ['WSL_HOST_IP'] on host.
+    @classmethod            
+    def restart(cls) -> None:
+        """
+        Reset the ue4 client conection.
         """        
-        client = MultirotorClient(os.environ['UE4_IP'])
-        
-        @classmethod            
-        def restart(cls) -> None:
-            """
-            Reset the ue4 client conection.
-            """        
-            rospy.logwarn(f"\nRestart Connection: {cls.client.ping()}")
-            cls.client.reset()
-        
-        def __init__(cls) -> None:
-            cls.client.confirmConnection()
-            rospy.logwarn(f"\nConnection: {cls.client.ping()}")        
+        rospy.logwarn(f"\nRestart Connection: {cls.client.ping()}")
+        cls.client.reset()
     
-    @staticmethod
-    def pose(position : tuple, eularian_orientation : tuple) -> Pose:
-        """_summary_
-
-        Args:
-            position (tuple): position (x, y ,z).
-            eularian_orientation (tuple): (roll, pitch, yaw).
-
-        Returns:
-            Pose: AirSim pose type.
-        """        
-        x, y, z = position
-        pitch, roll, yaw =  np.deg2rad(eularian_orientation[0]),\
-                            np.deg2rad(eularian_orientation[1]),\
-                            np.deg2rad(eularian_orientation[2])
-        pose_ = Pose()
-        pose_.position.x_val = x
-        pose_.position.y_val = y
-        pose_.position.z_val = z
+    def __init__(cls) -> None:
+        cls.client.confirmConnection()
+        rospy.logwarn(f"\nConnection: {cls.client.ping()}")     
         
-        pose_.orientation = to_quaternion(pitch, roll, yaw)
-        
-        return pose_
     
-    def __init__(self):
-        self.ue4 = self._Ue4Briedge()
+    
+class _SpawResources:
+    
+    def __init__(self, ue4_connection : MultirotorClient):
+        self.__conn = ue4_connection
         self.__pub_info = rospy.Publisher("simulation_info", String, queue_size=10)
         
-    def get_object_pose(self, object_name : str) -> Pose:
+    def _get_object_pose(self, object_name : str) -> Pose:
         """Returns a scene element pose.
 
         Args:
@@ -80,10 +58,10 @@ class _Resources:
         Returns:
             Pose: AirSim native pose.
         """        
-        pose = self.ue4.client.simGetObjectPose(object_name)
+        pose = self.__conn.simGetObjectPose(object_name)
         return pose
     
-    def get_vehicle_pose(self, vehicle_name : str) -> Pose:
+    def _get_vehicle_pose(self, vehicle_name : str) -> Pose:
         """Returns a scene element pose.
 
         Args:
@@ -92,10 +70,10 @@ class _Resources:
         Returns:
             Pose: AirSim native pose.
         """        
-        pose = self.ue4.client.simGetVehiclePose(vehicle_name)
+        pose = self.__conn.simGetVehiclePose(vehicle_name)
         return pose
-             
-    def set_vehicle_pose(self, vehicle_name : str, position : tuple, eularian_orientation : tuple, debbug : bool = False) -> None:
+            
+    def _set_vehicle_pose(self, vehicle_name : str, position : tuple, eularian_orientation : tuple, debbug : bool = False) -> None:
         """Define a new pose at one vehicle.
 
         Args:
@@ -103,14 +81,14 @@ class _Resources:
             position (tuple): (x,y,z).
             eularian_orientation (tuple): (pitch, roll, yaw).
         """           
-        pose = self.pose(position, eularian_orientation)
-        self.ue4.client.simSetVehiclePose(pose, True, vehicle_name)
+        pose = pose(position, eularian_orientation)
+        self.__conn.simSetVehiclePose(pose, True, vehicle_name)
         
         if debbug:
             info = f"New Vehicle pose was defined: {vehicle_name} - [{position}, {eularian_orientation}]"
             self.__pub_info.publish(info) 
             
-    def set_object_pose(self, object_name : str, position : tuple, eularian_orientation : tuple, debbug : bool = False) -> None:
+    def _set_object_pose(self, object_name : str, position : tuple, eularian_orientation : tuple, debbug : bool = False) -> None:
         """Define a new pose at one scene object.
 
         Args:
@@ -118,34 +96,15 @@ class _Resources:
             position (tuple): (x,y,z).
             eularian_orientation (tuple): (pitch, roll, yaw).
         """           
-        pose = self.pose(position, eularian_orientation)
-        self.ue4.client.simSetObjectPose(pose, True, object_name)
+        pose = pose(position, eularian_orientation)
+        self.__conn.simSetObjectPose(pose, True, object_name)
         
         if debbug:
             info = f"New Object pose was defined: {object_name} - [{position}, {eularian_orientation}]"
             self.__pub_info.publish(info) 
-            
-    def get_current_eularian_vehicle_angles(self, vehicle_name : str) -> tuple:
-        """Get current eularian angles from vehicle.
 
-        Args:
-            vehicle_name (str): The same was defined on settings.json .
-
-        Returns:
-            tuple: (pitch, roll, yaw)
-        """        
-        pose = self.get_vehicle_pose(vehicle_name)
-
-        pitch, roll, yaw = to_eularian_angles(pose.orientation)
-        return (pitch, roll, yaw)
-    
-            
-class Spawn(_Resources):
-    def __init__(self) -> None:
-        _Resources.__init__(self)
-        
     def _air_random_circular_pose(self, vehicle_name : str, target : str, radius : float, dist : float) -> tuple:
-        """Set a random vehicle pose at target based on radius range and secure distance to avoid collision.
+        """Define a random vehicle pose at target based on radius range and secure distance to avoid collision.
 
         Args:
             radius (float): Range around the target to define vehicle's pose.
@@ -156,7 +115,7 @@ class Spawn(_Resources):
             tuple: (new x, new y, new yaw)
         """        
         _, _, current_yaw = self.get_current_eularian_vehicle_angles(vehicle_name)
-        pose = self.get_object_pose(target)
+        pose = self._get_object_pose(target)
 
         x = pose.position.x_val
         y = pose.position.y_val
@@ -181,17 +140,41 @@ class Spawn(_Resources):
         nyaw = current_yaw + angular_distance((nx, ny, 0), (x, y, 0), degrees=True)
 
         return (nx, ny, nyaw)
-        
+          
+    def get_current_eularian_vehicle_angles(self, vehicle_name : str) -> tuple:
+        """Get current eularian angles from vehicle.
+
+        Args:
+            vehicle_name (str): The same was defined on settings.json .
+
+        Returns:
+            tuple: (pitch, roll, yaw)
+        """        
+        pose = self._get_vehicle_pose(vehicle_name)
+
+        pitch, roll, yaw = to_eularian_angles(pose.orientation)
+        return (pitch, roll, yaw)
+    
     def set_air_random_circular_pose(self, vehicle_name : str, target : str, radius : float, dist : float) -> None:
-        pose = self.get_vehicle_pose(vehicle_name)
+        """Set a random vehicle pose at target based on radius range and secure distance to avoid collision.
+
+        Args:
+            radius (float): Range around the target to define vehicle's pose.
+            dist (float): Secure distance to spawn.
+            target (str): Scene object name.
+
+        Returns:
+            tuple: (new x, new y, new yaw)
+        """   
+        pose = self._get_vehicle_pose(vehicle_name)
         z = pose.position.z_val
 
         x, y, yaw = self._air_random_circular_pose(vehicle_name, target, radius, dist)
         position = (x, y, z)
         eularian_orientation = (0, 0, yaw)
 
-        self.set_vehicle_pose(vehicle_name, position, eularian_orientation)
-        
+        self._set_vehicle_pose(vehicle_name, position, eularian_orientation)
+ 
 
 if __name__ == "__main__":
     rospy.init_node("simulation", anonymous=False)
