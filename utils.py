@@ -3,7 +3,8 @@ import rospy
 
 import numpy as np
 
-from airsim.types import Pose
+from airsim_base.types import Pose
+from airsim_base.utils import to_quaternion
 
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -13,8 +14,7 @@ def angular_distance(position : tuple, target_position : tuple, degrees : bool) 
 
     Args:
         position (tuple): (x, y, z) current position.
-        yaw (float): current yaw.
-        target_position (tuple): (x, y, z) target position.
+        target_position (tuple): (x, y, z) target's position.
         degrees: Define if radian's or degree's at result type 
 
     Returns:
