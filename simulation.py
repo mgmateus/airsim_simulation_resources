@@ -33,12 +33,12 @@ class Ue4Briedge:
             -For set ip address from WSL, os.environ['WSL_HOST_IP'] on host.
     """        
     
-    def __init__(self) -> None:
+    def __init__(self, package_name : str) -> None:
         self.client = MultirotorClient(os.environ['UE4_IP'])
         self.client.confirmConnection()
         rospy.logwarn(f"\nConnection: {self.client.ping()}")     
         self.spawn_resources = _SpawResources(self.client)
-        self.debbug_resources = _DebbugResources(self.client)
+        self.debbug_resources = _DebbugResources(self.client, package_name)
 
     def restart(self) -> None:
         """
@@ -216,15 +216,16 @@ class _SpawResources:
         self._set_vehicle_pose(vehicle_name, position, eularian_orientation)
 
 class _DebbugResources:
-    def __init__(self, ue4_connection : MultirotorClient):
+    def __init__(self, ue4_connection : MultirotorClient, package_name : str):
         self.__conn = ue4_connection
+        self.__package_name = package_name
         self.usual_cams = {0 : "rgb", 1 : 'depth', 5 : 'segmentation'}
         self.rospack = rospkg.RosPack()
         
     def save_assync_images(self, camera_names : List[str], image_types : List[ImageType]):
         for cam, image in zip(camera_names, image_types):
             response = self.__conn.simGetImages([ImageRequest(cam, image, False, False)], 'Hydrone')[0]
-            filename = self.rospack.get_path(PACKAGE_NAME) + '/debbug/images/' +\
+            filename = self.rospack.get_path(self.__package_name) + '/debbug/images/' +\
                        self.usual_cams[image] + '/' + str(datetime.datetime.now().strftime('%d-%m-%Y--%H:%M:%S'))
             
             rospy.logwarn(f"filename -> {filename}")
