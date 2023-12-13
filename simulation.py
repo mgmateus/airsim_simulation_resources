@@ -21,8 +21,6 @@ from std_msgs.msg import String
 
 from .utils import pose, angular_distance
 
-PACKAGE_NAME = 'mxso_curl'
-
 class Ue4Briedge:
     """Starts communication's Engine.
 
